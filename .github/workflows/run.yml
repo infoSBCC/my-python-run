@@ -2,7 +2,7 @@ name: Run Python Script
 
 on:
   schedule:
-    - cron: '20 11 * * *'  # 18:20 เวลาไทย (UTC+7)
+    - cron: '15 11 * * *'  # 18:20 เวลาไทย (UTC+7)
   workflow_dispatch:
 
 env:
