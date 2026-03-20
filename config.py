@@ -19,6 +19,7 @@ TIKTOK_PUBLISH_TIME = "ALL_TIME"   # ALL_TIME, YESTERDAY, WEEK, MONTH, THREE_MON
 # ---------- คอลัมน์ที่บันทึกลง Google Sheet ----------
 # เลือกเฉพาะ field ที่อยากเก็บจาก output ของ Actor
 SHEET_COLUMNS = [
+    "TIKTOK_KEYWORD"
     "aweme_id",        # Video ID
     "desc",            # Caption + hashtags
     "create_time",     # Unix timestamp
