@@ -1,36 +1,25 @@
 # ===== config.py =====
-# แก้ค่าที่นี่ที่เดียว ไม่ต้องแตะไฟล์อื่น
 
 # ---------- Google Sheets ----------
-SHEET_ID   = "1jOsRV1Q8BbLM1p1HJAdvJ6liK9VlG3sUX1LalDcxSks"
-RAW_SHEET  = "raw"          # sheet ที่เก็บ raw data จาก TikTok
-SCOPES     = ["https://www.googleapis.com/auth/spreadsheets"]
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# ---------- Apify / TikTok Actor ----------
-ACTOR_ID   = "novi/advanced-search-tiktok-api"
+# Sheet 1: Keyword Sheet (ดึง keyword มาค้นหา)
+KEYWORD_SHEET_ID   = "14t4EbZ42IkmD-21VfVueuAVdUr67_v159FQLvknbtnQ"
+KEYWORD_SHEET_NAME = "keyword"               # ชื่อ sheet ที่เก็บ keyword
+KEYWORD_COL        = "Keyword Search"        # column keyword ที่ใช้ค้นหา
+KEYWORD_GROUP_COL  = "keyword group"         # column ที่ใช้ติด label ใน post
+KEYWORD_DESC_COL   = "Keyword Description"   # column คำอธิบาย (ใช้ตรวจสอบ transcript)
 
-# --- ปรับค่า search ตรงนี้ ---
-TIKTOK_KEYWORD     = "ภาษี รถติด"   # คำค้นหา
-TIKTOK_LIMIT       = 50        # จำนวน video สูงสุด
-TIKTOK_REGION      = "TH"      # รหัสประเทศ เช่น TH, US, GB
-TIKTOK_SORT_TYPE   = 1         # 0=Relevance, 1=Most Liked, 2=Most Recent
-TIKTOK_PUBLISH_TIME = "ALL_TIME"   # ALL_TIME, YESTERDAY, WEEK, MONTH, THREE_MONTH, SIX_MONTH
+# Sheet 2: UniquePost Sheet
+UNIQUE_POST_SHEET_ID   = "1eyN3iREZD068lBSgZy1OzrCILxVlSKio_EJHF2AhnF0"
+UNIQUE_POST_SHEET_NAME = "UniquePost"        # ชื่อ sheet ที่เก็บ unique post
 
-# ---------- คอลัมน์ที่บันทึกลง Google Sheet ----------
-# เลือกเฉพาะ field ที่อยากเก็บจาก output ของ Actor
-SHEET_COLUMNS = [
-    "TIKTOK_KEYWORD"
-    "aweme_id",        # Video ID
-    "desc",            # Caption + hashtags
-    "create_time",     # Unix timestamp
-    "region",          # ประเทศที่อัปโหลด
-    "share_url",       # URL ของวิดีโอ
-    "author_unique_id", # @username
-    "author_nickname", # ชื่อแสดง
-    "digg_count",      # ยอดไลก์
-    "comment_count",   # ยอดคอมเมนต์
-    "share_count",     # ยอดแชร์
-    "play_count",      # ยอดวิว
-    "video_duration",  # ความยาว (ms)
-    "music_title",     # ชื่อเพลง
-]
+# ---------- Apify / TikTok Actors ----------
+SEARCH_ACTOR_ID     = "novi/advanced-search-tiktok-api"
+TRANSCRIPT_ACTOR_ID = "sian.agency/best-tiktok-ai-transcript-extractor"
+
+# ---------- Search Config ----------
+TIKTOK_LIMIT      = 50     # จำนวน video สูงสุดต่อ keyword
+TIKTOK_REGION     = "TH"   # รหัสประเทศ
+TIKTOK_SORT_TYPE  = 1      # 0=Relevance, 1=Most Liked, 2=Most Recent
+TIKTOK_PUBLISH_TIME = "WEEK"  # ย้อนหลัง 1 สัปดาห์ (~6 วัน) = WEEK
