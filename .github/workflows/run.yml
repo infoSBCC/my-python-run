@@ -2,7 +2,7 @@ name: Run Python Script
 
 on:
   schedule:
-    - cron: '15 11 * * *'  # 18:20 เวลาไทย (UTC+7)
+    - cron: '15 11 * * *' # 18:15 เวลาไทย (UTC+7)
   workflow_dispatch:
 
 env:
@@ -17,5 +17,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas gspread google-auth
       - name: Run script
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
         run: python main.py
