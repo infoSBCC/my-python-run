@@ -21,5 +21,5 @@ TRANSCRIPT_ACTOR_ID = "sian.agency/best-tiktok-ai-transcript-extractor"
 # ---------- Search Config ----------
 TIKTOK_LIMIT      = 50     # จำนวน video สูงสุดต่อ keyword
 TIKTOK_REGION     = "TH"   # รหัสประเทศ
-TIKTOK_SORT_TYPE  = 1      # 0=Relevance, 1=Most Liked, 2=Most Recent
-TIKTOK_PUBLISH_TIME = "WEEK"  # ย้อนหลัง 1 สัปดาห์ (~6 วัน) = WEEK
+TIKTOK_SORT_TYPE  = 0      # 0=Relevance, 1=Most Liked, 2=Most Recent
+TIKTOK_PUBLISH_TIME = "ALL_TIME"  # ย้อนหลัง 1 สัปดาห์ (~6 วัน) = WEEK
