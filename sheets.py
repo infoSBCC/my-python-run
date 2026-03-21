@@ -55,7 +55,7 @@ def get_keywords():
                     desc = str(row.get(KEYWORD_DESC_COL, "")).strip()
                     if kw:
                                     result.append({"keyword": kw, "group": grp, "description": desc})
-                            return result
+        return result
 
 
 # --- UniquePost Sheet ---
@@ -67,7 +67,7 @@ def get_existing_links():
                     link = str(row.get("Link", row.get("link", ""))).strip()
                     if link:
                                     existing.add(link)
-                            return existing
+        return existing
 
 
 def append_unique_posts(new_rows):
@@ -89,4 +89,4 @@ def append_unique_posts(new_rows):
                     sheet.append_rows(new_rows, value_input_option="USER_ENTERED")
                     print(f"appended {len(new_rows)} rows to UniquePost")
         else:
-            print("no new rows to append")
+                    print("no new rows to append")
