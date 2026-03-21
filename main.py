@@ -11,7 +11,6 @@ from config import (
     SEARCH_ACTOR_ID,
     TRANSCRIPT_ACTOR_ID,
     TIKTOK_LIMIT,
-    TIKTOK_REGION,
     TIKTOK_SORT_TYPE,
     TIKTOK_PUBLISH_TIME,
 )
@@ -28,7 +27,6 @@ def search_tiktok(keyword):
         "keyword": keyword,
         "limit": TIKTOK_LIMIT,
         "isUnlimited": False,
-        "region": TIKTOK_REGION,
         "sortType": TIKTOK_SORT_TYPE,
         "publishTime": TIKTOK_PUBLISH_TIME,
     }
