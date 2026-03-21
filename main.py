@@ -23,71 +23,71 @@ claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
 
 
 def search_tiktok(keyword):
-        run_input = {
-                    "keyword": keyword,
-                    "limit": TIKTOK_LIMIT,
-                    "isUnlimited": False,
-                    "sortType": TIKTOK_SORT_TYPE,
-                    "publishTime": TIKTOK_PUBLISH_TIME,
-        }
-        print(f"  [Search] '{keyword}' publishTime={TIKTOK_PUBLISH_TIME}")
-        run = apify_client.actor(SEARCH_ACTOR_ID).call(run_input=run_input)
-        items = list(apify_client.dataset(run["defaultDatasetId"]).iterate_items())
-        print(f"  got {len(items)} items")
-        return items
+    run_input = {
+        "keyword": keyword,
+        "limit": TIKTOK_LIMIT,
+        "isUnlimited": False,
+        "sortType": TIKTOK_SORT_TYPE,
+        "publishTime": TIKTOK_PUBLISH_TIME,
+    }
+    print(f"  [Search] '{keyword}' publishTime={TIKTOK_PUBLISH_TIME}")
+    run = apify_client.actor(SEARCH_ACTOR_ID).call(run_input=run_input)
+    items = list(apify_client.dataset(run["defaultDatasetId"]).iterate_items())
+    print(f"  got {len(items)} items")
+    return items
 
 
 def get_transcripts_batch(links):
-        """
-            Run Transcript Actor once for a batch of links.
-                Returns dict: { url -> transcript_text }
-                    """
-        if not links:
-                    return {}
-                run_input = {
-                            "startUrls": [{"url": lnk} for lnk in links],
-                }
+    """
+    Run Transcript Actor once for a batch of links.
+    Returns dict: { url -> transcript_text }
+    """
+    if not links:
+        return {}
+    run_input = {
+        "startUrls": [{"url": lnk} for lnk in links],
+    }
     print(f"  [Transcript Batch] sending {len(links)} links to actor...")
     try:
-                run = apify_client.actor(TRANSCRIPT_ACTOR_ID).call(run_input=run_input)
-                results = list(apify_client.dataset(run["defaultDatasetId"]).iterate_items())
-                print(f"  [Transcript Batch] got {len(results)} results")
-                transcript_map = {}
-                for item in results:
-                                url = str(item.get("tiktokUrl", item.get("url", ""))).strip()
-                                transcript = str(item.get("transcript", "")).strip()
-                                if url:
-                                                    transcript_map[url] = transcript
-                                            return transcript_map
-except Exception as e:
+        run = apify_client.actor(TRANSCRIPT_ACTOR_ID).call(run_input=run_input)
+        results = list(apify_client.dataset(run["defaultDatasetId"]).iterate_items())
+        print(f"  [Transcript Batch] got {len(results)} results")
+        transcript_map = {}
+        for item in results:
+            url = str(item.get("tiktokUrl", item.get("url", ""))).strip()
+            transcript = str(item.get("transcript", "")).strip()
+            if url:
+                transcript_map[url] = transcript
+        return transcript_map
+    except Exception as e:
         print(f"  [warn] batch transcript error: {e}")
         return {}
 
 
 def label_with_claude(transcript, keyword_description):
-        """
-            Use Claude API to judge whether the transcript is related to keyword_description.
-                Returns 'yes' or 'Non'.
-                    """
+    """
+    Use Claude API to judge whether the transcript is related to keyword_description.
+    Returns 'yes' or 'Non'.
+    """
     if not transcript or not keyword_description:
-                return "Non"
-            prompt = (
-                        f"You are a content relevance classifier.\n\n"
-                        f"Keyword Description:\n{keyword_description}\n\n"
-                        f"TikTok Transcript:\n{transcript}\n\n"
-                        f"Is this transcript relevant to the keyword description above?\n"
-                        f"Reply with ONLY one word: 'yes' if relevant, 'Non' if not relevant."
-            )
+        return "Non"
+    prompt = (
+        f"You are a content relevance classifier.\n\n"
+        f"Keyword Description:\n{keyword_description}\n\n"
+        f"TikTok Transcript:\n{transcript}\n\n"
+        f"Is this transcript relevant to the keyword description above?\n"
+        f"Reply with ONLY one word: 'yes' if relevant, 'Non' if not relevant."
+    )
     try:
-                message = claude_client.messages.create(
-                                model="claude-3-5-haiku-20241022",
-                                max_tokens=10,
-                                messages=[{"role": "user", "content": prompt}],
-                )
-                answer = message.content[0].text.strip().lower()
-                if "yes" in answer:
-                                return "yes"
-    else:
+        message = claude_client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=10,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        answer = message.content[0].text.strip().lower()
+        if "yes" in answer:
+            return "yes"
+        else:
             return "Non"
     except Exception as e:
         print(f"  [warn] Claude label error: {e}")
@@ -95,7 +95,7 @@ def label_with_claude(transcript, keyword_description):
 
 
 def main():
-        today = datetime.date.today().isoformat()
+    today = datetime.date.today().isoformat()
 
     print("=" * 50)
     print("STEP 1: Keyword Search")
@@ -106,25 +106,25 @@ def main():
     # all_found: { link -> { kw_info, item_metadata } }
     all_found = {}
     for kw_info in keywords:
-                items = search_tiktok(kw_info["keyword"])
-                for item in items:
-                                link = str(item.get("share_url", "")).strip()
-                                if link and link not in all_found:
-                                                    author = item.get("author", {})
-                                                    video = item.get("video", {})
-                                                    music = item.get("added_sound_music_info", item.get("music", {}))
-                                                    all_found[link] = {
-                                                        "kw_info": kw_info,
-                                                        "create_time": str(item.get("create_time", "")).strip(),
-                                                        "author_name": str(author.get("nickname", "")).strip(),
-                                                        "author_unique_id": str(author.get("search_user_desc", author.get("uniqueId", ""))).strip(),
-                                                        "author_follower": str(author.get("follower_count", "")).strip(),
-                                                        "description": str(item.get("desc", "")).strip(),
-                                                        "video_duration": str(video.get("duration", "")).strip(),
-                                                        "music_title": str(music.get("title", "")).strip(),
-                                                    }
+        items = search_tiktok(kw_info["keyword"])
+        for item in items:
+            link = str(item.get("share_url", "")).strip()
+            if link and link not in all_found:
+                author = item.get("author", {})
+                video = item.get("video", {})
+                music = item.get("added_sound_music_info", item.get("music", {}))
+                all_found[link] = {
+                    "kw_info": kw_info,
+                    "create_time": str(item.get("create_time", "")).strip(),
+                    "author_name": str(author.get("nickname", "")).strip(),
+                    "author_unique_id": str(author.get("search_user_desc", author.get("uniqueId", ""))).strip(),
+                    "author_follower": str(author.get("follower_count", "")).strip(),
+                    "description": str(item.get("desc", "")).strip(),
+                    "video_duration": str(video.get("duration", "")).strip(),
+                    "music_title": str(music.get("title", "")).strip(),
+                }
 
-                        print(f"\ntotal links found: {len(all_found)}")
+    print(f"\ntotal links found: {len(all_found)}")
     print()
 
     print("=" * 50)
@@ -136,18 +136,17 @@ def main():
     print(f"new unique links: {len(new_links)}\n")
 
     if not new_links:
-                print("no new links. done!")
+        print("no new links. done!")
         return
 
-    # --- STEP 3: Get transcript only for new links (pre-label with transcript) ---
-    # First: get transcript for all new links to enable Claude labeling
+    # --- STEP 3: Get transcript only for new links ---
     print("=" * 50)
     print("STEP 3: Batch Transcript (all new links)")
     print("=" * 50)
     all_link_list = list(new_links.keys())
     transcript_map = get_transcripts_batch(all_link_list)
-
     print()
+
     print("=" * 50)
     print("STEP 4: Claude Label -> filter 'yes' -> fetch transcript only for 'yes'")
     print("=" * 50)
@@ -156,18 +155,18 @@ def main():
     yes_links = []
     label_map = {}
     for link, meta in new_links.items():
-                transcript = transcript_map.get(link, "").strip()
+        transcript = transcript_map.get(link, "").strip()
         kw_info = meta["kw_info"]
         print(f"  [Label] {link}")
         if not transcript:
-                        print("    no transcript -> label Non")
-                        use_label = "Non"
-else:
+            print("    no transcript -> label Non")
+            use_label = "Non"
+        else:
             use_label = label_with_claude(transcript, kw_info["description"])
             print(f"    Claude label -> {use_label}")
         label_map[link] = use_label
         if use_label == "yes":
-                        yes_links.append(link)
+            yes_links.append(link)
 
     print(f"\n'yes' links: {len(yes_links)} / {len(new_links)}")
 
@@ -178,25 +177,21 @@ else:
     print("=" * 50)
     rows = []
     for link, meta in new_links.items():
-                use_label = label_map[link]
-        # Only include transcript for 'yes' links (already fetched above)
+        use_label = label_map[link]
         transcript = transcript_map.get(link, "").strip() if use_label == "yes" else ""
-
         kw_info = meta["kw_info"]
-        # Build row matching UniquePost sheet columns:
-        # PublishDate | Link | keyword group | AuthorName | AuthorUniqueID | AuthorFollower | Description | Transcription | VideoDuration | MusicTitle | Use
         rows.append([
-                        meta["create_time"],
-                        link,
-                        kw_info["group"],
-                        meta["author_name"],
-                        meta["author_unique_id"],
-                        meta["author_follower"],
-                        meta["description"],
-                        transcript,
-                        meta["video_duration"],
-                        meta["music_title"],
-                        use_label,
+            meta["create_time"],
+            link,
+            kw_info["group"],
+            meta["author_name"],
+            meta["author_unique_id"],
+            meta["author_follower"],
+            meta["description"],
+            transcript,
+            meta["video_duration"],
+            meta["music_title"],
+            use_label,
         ])
 
     print(f"appending {len(rows)} rows to UniquePost...")
@@ -205,4 +200,4 @@ else:
 
 
 if __name__ == "__main__":
-        main()
+    main()
