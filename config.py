@@ -7,7 +7,7 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 KEYWORD_SHEET_ID   = "14t4EbZ42IkmD-21VfVueuAVdUr67_v159FQLvknbtnQ"
 KEYWORD_SHEET_NAME = "keyword"               # ชื่อ sheet ที่เก็บ keyword
 KEYWORD_COL        = "Keyword Search"        # column keyword ที่ใช้ค้นหา
-KEYWORD_GROUP_COL  = "keyword group"         # column ที่ใช้ติด label ใน post
+KEYWORD_GROUP_COL  = "KeywordGroup"         # column ที่ใช้ติด label ใน post
 KEYWORD_DESC_COL   = "Keyword Description"   # column คำอธิบาย (ใช้ตรวจสอบ transcript)
 
 # Sheet 2: UniquePost Sheet
