@@ -19,6 +19,6 @@ SEARCH_ACTOR_ID     = "novi/advanced-search-tiktok-api"
 TRANSCRIPT_ACTOR_ID = "sian.agency/best-tiktok-ai-transcript-extractor"
 
 # ---------- Search Config ----------
-TIKTOK_LIMIT      = 500     # จำนวน video สูงสุดต่อ keyword
+TIKTOK_LIMIT      = 100     # จำนวน video สูงสุดต่อ keyword
 TIKTOK_SORT_TYPE  = 0      # 0=Relevance, 1=Most Liked, 2=Most Recent
-TIKTOK_PUBLISH_TIME = "ALL_TIME"  # ย้อนหลัง 1 สัปดาห์ (~6 วัน) = WEEK
+TIKTOK_PUBLISH_TIME = "Week"  # ย้อนหลัง 1 สัปดาห์ (~6 วัน) = WEEK
