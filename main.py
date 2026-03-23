@@ -148,7 +148,7 @@ def fetch_stats(links):
 
     stats_map = {}
     for item in items:
-        link = str(item.get("postPage", "")).strip()
+        link = normalize_link(str(item.get("postPage", "")))  # normalize ก่อน เพื่อให้ตรงกับ yes_links
         if link:
             stats_map[link] = {
                 "likes":     int(item.get("likes",      0)),
