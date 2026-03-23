@@ -45,6 +45,12 @@ apify_client = ApifyClient(APIFY_TOKEN)
 claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
 
 
+
+def normalize_link(url):
+    """ตัด query string ออก เหลือแค่ส่วนก่อน ? เพื่อป้องกัน link เดิมแต่ param ต่างกัน"""
+    return url.split("?")[0].rstrip("/")
+
+
 def search_tiktok(keyword, limit, time_range):
     run_input = {
         "keyword":     keyword,
@@ -133,7 +139,7 @@ def fetch_stats(links):
         "location":             "US",
         "maxItems":             1000,
         "sortType":             "RELEVANCE",
-        "startUrls":            [{"url": lnk} for lnk in links],
+        "startUrls":            links,
     }
     print(f"  [Stats] running actor for {len(links)} links...")
     run     = apify_client.actor(STATS_ACTOR_ID).call(run_input=run_input)
@@ -174,10 +180,11 @@ def fetch_comments(links, scrape_date):
     aweme_to_link = {}
     for lnk in links:
         # extract video id จาก url เช่น .../video/7211250685902359850...
-        parts = lnk.split("/video/")
+        clean = normalize_link(lnk)
+        parts = clean.split("/video/")
         if len(parts) == 2:
-            vid_id = parts[1].split("?")[0].strip()
-            aweme_to_link[vid_id] = lnk
+            vid_id = parts[1].strip()
+            aweme_to_link[vid_id] = clean
 
     rows = []
     for item in items:
