@@ -29,6 +29,12 @@ from config import (
     OTHER_INSTRUCTION_SHEET_NAME,
 )
 
+
+def _normalize_link(url):
+    """ตัด query string ออก เหลือแค่ส่วนก่อน ?"""
+    return str(url).strip().split("?")[0].rstrip("/")
+
+
 # UniquePost sheet header columns (must match Google Sheet exactly)
 UNIQUE_POST_HEADERS = [
     "PublishDate",
@@ -103,7 +109,7 @@ def get_existing_links():
     records = sheet.get_all_records()
     existing = set()
     for row in records:
-        link = str(row.get("Link", row.get("link", ""))).strip()
+        link = _normalize_link(row.get("Link", row.get("link", "")))
         if link:
             existing.add(link)
     return existing
@@ -119,7 +125,7 @@ def get_yes_links_after_cutoff():
     result = []
     for row in records:
         use  = str(row.get("Use", "")).strip().lower()
-        link = str(row.get("Link", "")).strip()
+        link = _normalize_link(row.get("Link", ""))
         try:
             publish_ts = int(row.get("PublishDate", 0))
         except (ValueError, TypeError):
