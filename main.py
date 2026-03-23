@@ -91,8 +91,8 @@ def label_batch_with_claude(posts_to_label):
         try:
             print(f"    [attempt {attempt}/{MAX_RETRIES}]")
             message = claude_client.messages.create(
-                model="claude-sonnet-4-5-20250929",
-                max_tokens=4096,
+                model="claude-haiku-4-5-20251001",
+                max_tokens=5000,
                 messages=[{"role": "user", "content": prompt}],
             )
             raw = message.content[0].text.strip()
