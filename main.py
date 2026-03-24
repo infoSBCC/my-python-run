@@ -7,7 +7,8 @@
 import os
 import json
 import datetime
-import anthropic
+from google import genai
+from google.genai import types
 from apify_client import ApifyClient
 from sheets import (
     get_keywords,
@@ -38,12 +39,31 @@ from config import (
     CLASSIFY_BATCH_SIZE,
 )
 
-APIFY_TOKEN    = os.environ["APIFY_TOKEN"]
-CLAUDE_API_KEY = os.environ["CLAUDE_API_KEY"]
+APIFY_TOKEN  = os.environ["APIFY_TOKEN"]
+GEMINI_API   = os.environ["GEMINI_API"]
 
-apify_client = ApifyClient(APIFY_TOKEN)
-claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
+apify_client  = ApifyClient(APIFY_TOKEN)
+gemini_client = genai.Client(api_key=GEMINI_API)
 
+
+
+def _gemini_call(prompt, thinking=False):
+    """
+    เรียก Gemini API และคืน response text
+    thinking=True → ใช้ thinking_level=HIGH (สำหรับ Phase 2)
+    """
+    cfg = types.GenerateContentConfig(max_output_tokens=8192)
+    if thinking:
+        cfg = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_level="HIGH"),
+            max_output_tokens=8192,
+        )
+    response = gemini_client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt,
+        config=cfg,
+    )
+    return response.text.strip()
 
 
 def normalize_link(url):
@@ -96,13 +116,8 @@ def label_with_claude(posts_to_label):
     )
 
     try:
-        print(f"  [Claude] labeling {len(posts_to_label)} posts...")
-        message = claude_client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = message.content[0].text.strip()
+        print(f"  [Gemini] labeling {len(posts_to_label)} posts...")
+        raw = _gemini_call(prompt)
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
         if raw.endswith("```"):
@@ -115,7 +130,7 @@ def label_with_claude(posts_to_label):
             label   = item.get("label", "Non")
             label_map[post_id] = "yes" if "yes" in label.lower() else "Non"
 
-        # Posts missing from Claude response → fail
+        # Posts missing from response → fail
         for p in posts_to_label:
             if p["id"] not in label_map:
                 label_map[p["id"]] = "fail"
@@ -243,12 +258,8 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
     )
 
     try:
-        message = claude_client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = message.content[0].text.strip()
+        print(f"  [Gemini] classifying {len(batch)} comments...")
+        raw = _gemini_call(prompt)
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
         if raw.endswith("```"):
@@ -303,12 +314,8 @@ def detect_other_issues(other_comments, issue_criteria, other_instruction):
     )
 
     try:
-        message = claude_client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=8096,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = message.content[0].text.strip()
+        print(f"  [Gemini+thinking] detecting new issues from {len(sample)} comments...")
+        raw = _gemini_call(prompt, thinking=True)
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
         if raw.endswith("```"):
