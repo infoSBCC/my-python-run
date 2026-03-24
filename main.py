@@ -244,7 +244,7 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
 
     try:
         message = claude_client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-haiku-4-5-20251001",
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -304,7 +304,7 @@ def detect_other_issues(other_comments, issue_criteria, other_instruction):
 
     try:
         message = claude_client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=8096,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -505,7 +505,20 @@ def main():
     instruction       = get_instruction()
     unlabeled         = get_unlabeled_comments()
 
-    print(f"  types: {len(type_criteria)}  issues: {len(issue_criteria)}")
+    # debug: ตรวจสอบว่าโหลดข้อมูลมาได้จริงไหม
+    print(f"  types loaded   : {len(type_criteria)}")
+    for t in type_criteria:
+        print(f"    - {t['name']}: {t['criteria'][:60]}")
+    print(f"  issues loaded  : {len(issue_criteria)}")
+    for i in issue_criteria:
+        print(f"    - {i['name']}: {i['criteria'][:60]}")
+    print(f"  instruction len: {len(instruction)} chars")
+    if not instruction:
+        print("  [WARN] instruction is EMPTY — check Instruction sheet, column InstructionDetail")
+    if not type_criteria:
+        print("  [WARN] type_criteria is EMPTY — check TypeCriteria sheet, column NameType / CriteriaType")
+    if not issue_criteria:
+        print("  [WARN] issue_criteria is EMPTY — check IssueCriteria sheet, column NameIssue / CriteriaIssue")
 
     # build cid → row_index map สำหรับ update กลับ
     cid_to_row = {c["cid"]: c["row_index"] for c in unlabeled}
