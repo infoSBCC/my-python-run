@@ -243,7 +243,8 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
 
     comments_block = ""
     for c in batch:
-        comments_block += f"---\nID: {c['cid']}\nTEXT: {c['text']}\n"
+        safe_text = c["text"].replace('"', "'").replace("\n", " ").replace("\r", " ")
+        comments_block += f"---\nID: {c['cid']}\nTEXT: {safe_text}\n"
     comments_block += "---"
 
     prompt = (
@@ -264,6 +265,11 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
         if raw.endswith("```"):
             raw = raw[:-3].strip()
+        # extract JSON array — หา [ ... ] แรก เพราะ Gemini บางครั้งมีข้อความนำหน้า
+        start = raw.find("[")
+        end   = raw.rfind("]")
+        if start != -1 and end != -1:
+            raw = raw[start:end+1]
 
         results = json.loads(raw)
         output  = []
