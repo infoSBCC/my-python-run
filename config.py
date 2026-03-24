@@ -48,4 +48,4 @@ OTHER_INSTRUCTION_SHEET_NAME = "OtherInstruction"
 # ---------- Classify Config ----------
 OTHER_ISSUE_THRESHOLD = 100   # trigger Phase 2 ถ้า IssueLabels="Other" เกินนี้
 OTHER_SAMPLE_SIZE     = 500   # ส่ง Claude ไม่เกินนี้ (sample ถ้าเกิน)
-CLASSIFY_BATCH_SIZE   = 100   # classify ทีละกี่ comment ต่อ 1 Claude call
+CLASSIFY_BATCH_SIZE   = 50    # classify ทีละกี่ comment ต่อ 1 Claude call
