@@ -188,8 +188,12 @@ def fetch_comments(links, scrape_date):
 
     rows = []
     for item in items:
-        aweme_id = str(item.get("aweme_id", "")).strip()
-        video_link = aweme_to_link.get(aweme_id, aweme_id)  # fallback เป็น id ถ้าหา link ไม่เจอ
+        # aweme_id อาจเป็น int หรือ string → แปลงให้เป็น string เสมอก่อน lookup
+        aweme_id   = str(item.get("aweme_id", "")).strip()
+        video_link = aweme_to_link.get(aweme_id, "")
+
+        # user fields เป็น nested dict: item["user"]["uid"]
+        user = item.get("user", {}) or {}
 
         rows.append([
             video_link,
@@ -198,11 +202,11 @@ def fetch_comments(links, scrape_date):
             item.get("create_time", ""),
             int(item.get("digg_count", 0) or 0),
             int(item.get("reply_comment_total", 0) or 0),
-            str(item.get("user/uid", "")).strip(),
-            str(item.get("user/unique_id", "")).strip(),
-            str(item.get("user/nickname", "")).strip(),
-            int(item.get("user/follower_count", 0) or 0),
-            str(item.get("user/region", "")).strip(),
+            str(user.get("uid", "")).strip(),
+            str(user.get("unique_id", "")).strip(),
+            str(user.get("nickname", "")).strip(),
+            int(user.get("follower_count", 0) or 0),
+            str(user.get("region", "")).strip(),
             scrape_date,
         ])
     return rows
@@ -516,8 +520,8 @@ def main():
             if row:
                 label_updates.append({
                     "row_index":    row,
-                    "type_label":   r["type_label"],
-                    "issue_labels": r["issue_labels"],
+                    "type_label":   r["type_label"],   # maps to CommentType
+                    "issue_labels": r["issue_labels"],  # maps to CommentIssue
                 })
 
     batch_update_type_and_issue(label_updates)
