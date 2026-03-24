@@ -58,8 +58,8 @@ ALL_POST_HEADERS = [
     "Share",
     "Save",
     "ScrapeDate",
-    "TypeLabel",    # ประเภทความคิดเห็น — ว่างถ้ายังไม่จัด
-    "IssueLabels",  # ประเด็น คั่นด้วย | หรือ "Other" — ว่างถ้ายังไม่จัด
+    "CommentType",   # ประเภทความคิดเห็น — ว่างถ้ายังไม่จัด
+    "CommentIssue",  # ประเด็น คั่นด้วย | หรือ "Other" — ว่างถ้ายังไม่จัด
 ]
 
 
@@ -341,7 +341,7 @@ def get_unlabeled_comments():
     records = sheet.get_all_records()
     result = []
     for i, row in enumerate(records):
-        type_label = str(row.get("TypeLabel", "")).strip()
+        type_label = str(row.get("CommentType", "")).strip()
         if not type_label:
             result.append({
                 "row_index": i + 2,  # +2 เพราะ header อยู่แถวที่ 1
@@ -361,7 +361,7 @@ def get_other_issue_comments():
     records = sheet.get_all_records()
     result = []
     for i, row in enumerate(records):
-        issue_label = str(row.get("IssueLabels", "")).strip()
+        issue_label = str(row.get("CommentIssue", "")).strip()
         if issue_label == "Other":
             result.append({
                 "row_index": i + 2,
@@ -385,8 +385,8 @@ def batch_update_type_and_issue(updates):
     # หา column index ของ TypeLabel และ IssueLabels
     header = sheet.row_values(1)
     try:
-        type_col  = header.index("TypeLabel")  + 1  # 1-based
-        issue_col = header.index("IssueLabels") + 1
+        type_col  = header.index("CommentType")  + 1  # 1-based
+        issue_col = header.index("CommentIssue") + 1
     except ValueError as e:
         print(f"  [error] column not found: {e}")
         return
@@ -413,7 +413,7 @@ def batch_update_issue_only(updates):
     sheet = get_sheet(COMMENTS_SHEET_ID, COMMENTS_SHEET_NAME)
     header = sheet.row_values(1)
     try:
-        issue_col = header.index("IssueLabels") + 1
+        issue_col = header.index("CommentIssue") + 1
     except ValueError as e:
         print(f"  [error] column not found: {e}")
         return
