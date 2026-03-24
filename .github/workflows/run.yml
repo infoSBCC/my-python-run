@@ -23,5 +23,5 @@ jobs:
         env:
           GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
-          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          GEMINI_API: ${{ secrets.GEMINI_API }}
         run: python main.py
