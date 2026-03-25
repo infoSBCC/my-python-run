@@ -261,28 +261,30 @@ def fetch_comments(links, scrape_date):
 def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
     """
     Phase 1: จัดประเภท TypeLabel + IssueLabels สำหรับ 1 batch
-    ใช้ IDX (0,1,2,...) แทน CID และ index number แทนชื่อ type/issue
-    เพื่อป้องกัน Gemini truncate ตัวเลข 19 หลัก และ JSON error จากชื่อภาษาไทย
+    - ใช้ IDX (0,1,2,...) แทน CID เพื่อป้องกัน 19-digit number truncation
+    - ใช้ string ชื่อประเภท/ประเด็น (ไม่ใช้ index) เพื่อให้ตรงกับ Instruction sheet
     Returns: list of {"cid": str, "type_label": str, "issue_labels": str}
     """
     type_names  = [t["name"] for t in type_criteria] + ["Other"]
     issue_names = [i["name"] for i in issue_criteria] + ["Other"]
-    other_type_idx  = len(type_criteria)
-    other_issue_idx = len(issue_criteria)
 
     def _clean(text):
         return text.replace('"', "'").replace("\n", " ").replace("\r", " ")
 
     type_block = "\n".join(
-        f'{idx}={_clean(t["name"])}: {_clean(t["criteria"][:80])}'
-        for idx, t in enumerate(type_criteria)
-    ) + f"\n{other_type_idx}=Other"
+        f'- {_clean(t["name"])}: {_clean(t["criteria"][:100])}'
+        for t in type_criteria
+    ) + "\n- Other: ความคิดเห็นที่ไม่ตรงกับประเภทใดข้างต้น"
 
     issue_block = "\n".join(
-        f'{idx}={_clean(i["name"])}: {_clean(i["criteria"][:80])}'
-        for idx, i in enumerate(issue_criteria)
-    ) + f"\n{other_issue_idx}=Other"
+        f'- {_clean(i["name"])}: {_clean(i["criteria"][:100])}'
+        for i in issue_criteria
+    ) + "\n- Other: ประเด็นที่ไม่ตรงกับรายการใด"
 
+    valid_types  = set(type_names)
+    valid_issues = set(issue_names)
+
+    # idx_to_cid: ใช้ idx แทน CID เพื่อป้องกัน Gemini truncate ตัวเลขยาว
     idx_to_cid = {str(i): c["cid"] for i, c in enumerate(batch)}
 
     comments_block = ""
@@ -298,20 +300,21 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
 
     prompt = (
         f"{instruction}\n\n"
+        "หมายเหตุ: ใช้ IDX เป็น identifier แทน ID ในรูปแบบตอบกลับ\n\n"
         f"=== ประเภทความคิดเห็น ===\n{type_block}\n\n"
         f"=== ประเด็น ===\n{issue_block}\n\n"
         f"=== ความคิดเห็น ===\n{comments_block}\n\n"
         "ตอบเป็น JSON array เท่านั้น รูปแบบ:\n"
-        f'[{{"idx":0, "type":2, "issues":[1,3]}}]\n'
-        "type และ issues ใช้ตัวเลข index ข้างต้นเท่านั้น\n"
-        f"ถ้าไม่มี issue ตรง ให้ issues=[{other_issue_idx}]\n"
+        '[{"idx":0, "type":"ชื่อประเภท", "issues":["ชื่อประเด็น1","ชื่อประเด็น2"]}]\n'
+        "type ต้องเป็นชื่อประเภทที่ระบุข้างต้นเท่านั้น\n"
+        "issues ต้องเป็น list ของชื่อประเด็นที่ระบุข้างต้น ถ้าไม่มีให้ใส่ [\"Other\"]\n"
         "ห้ามอธิบาย ห้ามใส่ markdown"
     )
 
     try:
         print(f"  [Gemini] classifying {len(batch)} comments...")
         raw = _gemini_call(prompt)
-        print(f"  [RAW] {raw[:300]}")   # log 300 chars แรกของ response
+        print(f"  [RAW] {raw[:300]}")
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
         if raw.endswith("```"):
@@ -328,24 +331,37 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
             idx = str(item.get("idx", ""))
             cid = idx_to_cid.get(idx)
             if not cid:
-                print(f"  [WARN] idx={idx} not in idx_to_cid — skipping")
                 continue
             responded_idxs.add(idx)
-            try:
-                type_label = type_names[int(item.get("type", other_type_idx))]
-            except (IndexError, ValueError, TypeError):
-                type_label = "Other"
-            raw_issues = item.get("issues", [other_issue_idx])
+
+            # รองรับทั้ง string ("วิจารณ์...") และ index number (3)
+            raw_type = item.get("type", len(type_criteria))
+            if isinstance(raw_type, int) or str(raw_type).isdigit():
+                try:
+                    type_label = type_names[int(raw_type)]
+                except (IndexError, ValueError):
+                    type_label = "Other"
+            else:
+                type_label = str(raw_type).strip()
+                if type_label not in valid_types:
+                    type_label = "Other"
+
+            # รองรับทั้ง string list และ index number list
+            raw_issues = item.get("issues", [len(issue_criteria)])
             issue_labels_list = []
             for ii in raw_issues:
-                try:
-                    issue_labels_list.append(issue_names[int(ii)])
-                except (IndexError, ValueError, TypeError):
-                    issue_labels_list.append("Other")
+                if isinstance(ii, int) or str(ii).isdigit():
+                    try:
+                        issue_labels_list.append(issue_names[int(ii)])
+                    except (IndexError, ValueError):
+                        issue_labels_list.append("Other")
+                else:
+                    s = str(ii).strip()
+                    issue_labels_list.append(s if s in valid_issues else "Other")
             if not issue_labels_list:
                 issue_labels_list = ["Other"]
             issue_str = "|".join(issue_labels_list)
-            print(f"  [LABEL] idx={idx} cid={cid} → type={type_label} | issues={issue_str}")
+            print(f"  [LABEL] idx={idx} → type={type_label} | issues={issue_str}")
             output.append({
                 "cid":          cid,
                 "type_label":   type_label,
@@ -354,13 +370,13 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
         # fill missing idx
         for idx, cid in idx_to_cid.items():
             if idx not in responded_idxs:
-                print(f"  [MISSING] idx={idx} cid={cid} → fallback Other")
+                print(f"  [MISSING] idx={idx} → fallback Other")
                 output.append({"cid": cid, "type_label": "Other", "issue_labels": "Other"})
         return output
 
     except Exception as e:
         print(f"  [warn] classify batch failed: {e}")
-        print(f"  [RAW on error] {raw[:300] if 'raw' in dir() else 'no raw'}")
+        print(f"  [RAW on error] {raw[:300] if 'raw' in locals() else 'no raw'}")
         return [{"cid": c["cid"], "type_label": "Other", "issue_labels": "Other"}
                 for c in batch]
 
