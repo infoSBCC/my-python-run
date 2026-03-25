@@ -680,7 +680,7 @@ def main():
     # จัดกลุ่ม unlabeled comment ตาม KeywordGroup
     groups_map = {}   # {group: [comment]}
     for c in unlabeled:
-        group = postid_to_group.get(c["post_id"], "_unknown_")
+        group = postid_to_group.get(c["post_id"], "_unknown_") or "_unknown_"
         groups_map.setdefault(group, []).append(c)
 
     print(f"  comment groups : { {g: len(v) for g, v in groups_map.items()} }")
@@ -705,18 +705,21 @@ def main():
         # ดึง IssueCriteria ของ group นี้
         issue_criteria = issue_criteria_all.get(group, [])
 
-        # ถ้ายังไม่มี criteria → สร้างใหม่อัตโนมัติ
+        # ถ้ายังไม่มี criteria → สร้างใหม่อัตโนมัติ (ข้าม _unknown_)
         if not issue_criteria:
-            print(f"  [NEW GROUP] '{group}' has no IssueCriteria — generating...")
-            issue_criteria = generate_issue_criteria_for_group(
-                group, group_comments, instruction, all_existing_names
-            )
-            if issue_criteria:
-                append_issue_criteria(issue_criteria, keyword_group=group)
-                issue_criteria_all[group] = issue_criteria
-                all_existing_names.update(c["name"] for c in issue_criteria)
+            if group == "_unknown_":
+                print(f"  [SKIP] group '_unknown_' — PostID missing, cannot generate criteria")
             else:
-                print(f"  [warn] could not generate criteria for '{group}' — using Other for all")
+                print(f"  [NEW GROUP] '{group}' has no IssueCriteria — generating...")
+                issue_criteria = generate_issue_criteria_for_group(
+                    group, group_comments, instruction, all_existing_names
+                )
+                if issue_criteria:
+                    append_issue_criteria(issue_criteria, keyword_group=group)
+                    issue_criteria_all[group] = issue_criteria
+                    all_existing_names.update(c["name"] for c in issue_criteria)
+                else:
+                    print(f"  [warn] could not generate criteria for '{group}' — using Other for all")
 
         # Classify ทีละ batch
         for i in range(0, len(group_comments), CLASSIFY_BATCH_SIZE):
