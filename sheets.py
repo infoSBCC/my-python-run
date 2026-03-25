@@ -268,21 +268,31 @@ COMMENTS_HEADERS = [
 # --- Comments Sheet ---
 def append_comments(new_rows):
     """
-    Append rows to Comments sheet.
-    Each row: [VideoLink, CommentID, CommentText, CommentDate, DiggCount,
-               ReplyCount, AuthorUID, AuthorUniqueID, AuthorNickname,
-               AuthorFollower, AuthorRegion, ScrapeDate]
+    Append rows to Comments sheet — dedup ด้วย CommentID (column index 1)
+    Each row: [PostID, CommentID, CommentText, ...]
     """
     sheet = get_sheet(COMMENTS_SHEET_ID, COMMENTS_SHEET_NAME)
     header = sheet.row_values(1)
     if not header:
         sheet.append_row(COMMENTS_HEADERS)
         print("created header in Comments")
-    if new_rows:
-        sheet.append_rows(new_rows, value_input_option="USER_ENTERED")
-        print(f"appended {len(new_rows)} rows to Comments")
+
+    # อ่าน CommentID ที่มีอยู่แล้ว
+    existing_records = sheet.get_all_records()
+    existing_cids = {str(r.get("CommentID", "")).strip() for r in existing_records}
+
+    # กรองเฉพาะ row ที่ CommentID ยังไม่มี
+    cid_col_idx = 1  # CommentID อยู่ที่ index 1 (0-based)
+    unique_rows = [
+        row for row in new_rows
+        if str(row[cid_col_idx]).strip() not in existing_cids
+    ]
+
+    if unique_rows:
+        sheet.append_rows(unique_rows, value_input_option="USER_ENTERED")
+        print(f"appended {len(unique_rows)} new rows to Comments (skipped {len(new_rows)-len(unique_rows)} duplicates)")
     else:
-        print("no comment rows to append")
+        print("no new comment rows to append (all duplicates)")
 
 
 # --- Criteria & Instruction ---
@@ -348,12 +358,17 @@ def get_unlabeled_comments():
     sheet = get_sheet(COMMENTS_SHEET_ID, COMMENTS_SHEET_NAME)
     records = sheet.get_all_records()
     result = []
+    VALID_ENG_TYPES = {
+        'NeedData','Concerned','Analysis','Criticize','Support',
+        'Suggestion','Campaign','TagFriend','Sticker','Other'
+    }
     for i, row in enumerate(records):
         type_label = str(row.get("CommentType", "")).strip()
-        if not type_label:
+        # classify ถ้า: ว่าง หรือ เป็น Thai label (ไม่อยู่ใน valid English types)
+        needs_classify = (not type_label) or (type_label not in VALID_ENG_TYPES)
+        if needs_classify:
             cid  = str(row.get("CommentID", "")).strip()
             text = str(row.get("CommentText", "")).strip()
-            # fallback: ถ้า CommentID ว่างให้ใช้ row_index เป็น cid
             if not cid:
                 cid = f"row_{i+2}"
             result.append({
@@ -416,8 +431,8 @@ def batch_update_type_and_issue(updates):
         cell_data.append({"range": gspread.utils.rowcol_to_a1(r, issue_col),
                           "values": [[u["issue_labels"]]]})
 
-    # แบ่ง chunk ละ 500 ranges เพื่อไม่เกิน Google Sheets API limit (~1000 ranges/request)
-    CHUNK = 500
+    # แบ่ง chunk ละ 400 ranges เพื่อไม่เกิน Google Sheets API limit
+    CHUNK = 400
     for i in range(0, len(cell_data), CHUNK):
         sheet.batch_update(cell_data[i:i+CHUNK], value_input_option="USER_ENTERED")
     print(f"  batch_update: {len(updates)} comment(s) labeled")
