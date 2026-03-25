@@ -632,8 +632,10 @@ def main():
     if not issue_criteria:
         print("  [WARN] issue_criteria is EMPTY — check IssueCriteria sheet, column NameIssue / CriteriaIssue")
 
-    # build cid → row_index map สำหรับ update กลับ
-    cid_to_row = {c["cid"]: c["row_index"] for c in unlabeled}
+    # build cid → list of row_indices (รองรับ duplicate CID)
+    cid_to_rows = {}
+    for c in unlabeled:
+        cid_to_rows.setdefault(c["cid"], []).append(c["row_index"])
 
     label_updates = []
     for i in range(0, len(unlabeled), CLASSIFY_BATCH_SIZE):
@@ -641,12 +643,12 @@ def main():
         print(f"  [Batch] comments {i+1}-{i+len(chunk)} / {len(unlabeled)}")
         results = classify_comments_batch(chunk, type_criteria, issue_criteria, instruction)
         for r in results:
-            row = cid_to_row.get(r["cid"])
-            if row:
+            rows = cid_to_rows.get(r["cid"], [])
+            for row in rows:   # update ทุก row ที่มี CID นี้
                 label_updates.append({
                     "row_index":    row,
-                    "type_label":   r["type_label"],   # maps to CommentType
-                    "issue_labels": r["issue_labels"],  # maps to CommentIssue
+                    "type_label":   r["type_label"],
+                    "issue_labels": r["issue_labels"],
                 })
 
     batch_update_type_and_issue(label_updates)
