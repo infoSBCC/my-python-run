@@ -203,7 +203,7 @@ def get_active_links_by_delta():
     for row in records:
         link        = _normalize_link(row.get("Link", ""))
         post_id     = str(row.get("PostID", "")).strip()
-        scrape_raw  = str(row.get("ScrapeDate", "")).strip()   # "2026-03-23 06:54:59 UTC"
+        scrape_raw  = str(row.get("ScrapeDate", "")).strip()
         try:
             comments = int(row.get("Comment", 0))
         except (ValueError, TypeError):
@@ -217,6 +217,21 @@ def get_active_links_by_delta():
             postid_map[link] = post_id
             if group_val:
                 postid_group_map[link] = group_val
+
+    # fallback: ถ้า link ไม่มี group ใน AllPost → ดูจาก UniquePost ผ่าน PostID
+    if any(link not in postid_group_map for link in postid_map):
+        try:
+            up_sheet  = get_sheet(UNIQUE_POST_SHEET_ID, UNIQUE_POST_SHEET_NAME)
+            up_records = up_sheet.get_all_records()
+            pid_to_grp = {
+                str(r.get("PostID","")).strip(): str(r.get("KeywordGroup","")).strip()
+                for r in up_records if str(r.get("PostID","")).strip()
+            }
+            for link, pid in postid_map.items():
+                if link not in postid_group_map and pid in pid_to_grp:
+                    postid_group_map[link] = pid_to_grp[pid]
+        except Exception as e:
+            print(f"  [warn] fallback UniquePost lookup failed: {e}")
 
         scrape_date = scrape_raw[:10]   # ตัดเอาแค่ "YYYY-MM-DD"
 
