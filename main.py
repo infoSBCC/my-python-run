@@ -25,6 +25,7 @@ from sheets import (
     get_unlabeled_comments,
     get_other_issue_comments,
     get_other_issue_comments_by_group,
+    get_postid_to_group,
     get_issue_criteria_all,
     batch_update_type_and_issue,
     batch_update_issue_only,
@@ -686,13 +687,19 @@ def main():
     print(f"  issue groups   : {list(issue_criteria_all.keys())}")
     print(f"  instruction len: {len(instruction)} chars")
 
-    # จัดกลุ่ม unlabeled comment ตาม KeywordGroup ที่อ่านตรงจาก Comments sheet
+    # จัดกลุ่ม unlabeled comment ตาม KeywordGroup
+    # ถ้า Comments sheet ไม่มี KeywordGroup → lookup จาก UniquePost ผ่าน PostID
+    postid_to_group_fallback = get_postid_to_group()
+
     groups_map = {}   # {group: [comment]}
     for c in unlabeled:
         group = c.get("keyword_group", "").strip()
+        # fallback 1: ดู PostID → UniquePost
+        if not group and c.get("post_id"):
+            group = postid_to_group_fallback.get(c["post_id"], "").strip()
+        # fallback 2: ถ้ายังไม่เจอ → _unknown_
         if not group:
-            real_groups = [g for g in issue_criteria_all if g not in ("_global_", "_unknown_")]
-            group = real_groups[0] if real_groups else "_unknown_"
+            group = "_unknown_"
         groups_map.setdefault(group, []).append(c)
 
     print(f"  comment groups : { {g: len(v) for g, v in groups_map.items()} }")
