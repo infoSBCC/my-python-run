@@ -60,6 +60,7 @@ ALL_POST_HEADERS = [
     "Share",
     "Save",
     "ScrapeDate",
+    "KeywordGroup",
     "CommentType",   # ประเภทความคิดเห็น — ว่างถ้ายังไม่จัด
     "CommentIssue",  # ประเด็น คั่นด้วย | หรือ "Other" — ว่างถ้ายังไม่จัด
 ]
@@ -133,8 +134,9 @@ def get_yes_links_after_cutoff():
             publish_ts = int(row.get("PublishDate", 0))
         except (ValueError, TypeError):
             publish_ts = 0
+        keyword_group = str(row.get("KeywordGroup", "")).strip()
         if use == "yes" and link and publish_ts > PUBLISH_DATE_CUTOFF:
-            result.append({"link": link, "post_id": post_id})
+            result.append({"link": link, "post_id": post_id, "keyword_group": keyword_group})
     print(f"  found {len(result)} yes-links after cutoff")
     return result
 
@@ -196,7 +198,8 @@ def get_active_links_by_delta():
     today_map     = {}   # link → comment count (วันนี้)
     yesterday_map = {}   # link → comment count (เมื่อวาน)
 
-    postid_map = {}  # link → post_id (อ่านจาก AllPost)
+    postid_map = {}       # link → post_id
+    postid_group_map = {}  # link → keyword_group
     for row in records:
         link        = _normalize_link(row.get("Link", ""))
         post_id     = str(row.get("PostID", "")).strip()
@@ -209,8 +212,11 @@ def get_active_links_by_delta():
         if not link or not scrape_raw:
             continue
 
+        group_val = str(row.get("KeywordGroup", "")).strip()
         if post_id:
             postid_map[link] = post_id
+            if group_val:
+                postid_group_map[link] = group_val
 
         scrape_date = scrape_raw[:10]   # ตัดเอาแค่ "YYYY-MM-DD"
 
@@ -239,7 +245,7 @@ def get_active_links_by_delta():
             passes = delta > 20
 
         if passes:
-            active_links.append({"link": link, "post_id": postid_map.get(link, "")})
+            active_links.append({"link": link, "post_id": postid_map.get(link, ""), "keyword_group": postid_group_map.get(link, "")})
             print(f"  [delta] {link[:60]}... comments={comments_today}  delta={delta}  -> pass")
         else:
             print(f"  [delta] {link[:60]}... comments={comments_today}  delta={delta}  -> skip")
@@ -262,6 +268,7 @@ COMMENTS_HEADERS = [
     "AuthorFollower",
     "AuthorRegion",
     "ScrapeDate",        # เวลาที่ run actor
+    "KeywordGroup",      # keyword group ของ video นี้
 ]
 
 
@@ -374,10 +381,11 @@ def get_postid_to_group():
     return result
 
 
-def get_other_issue_comments_by_group(postid_to_group):
+def get_other_issue_comments_by_group():
     """
     คืน dict {keyword_group: [{"row_index", "cid", "text"}]}
     สำหรับ comment ที่ CommentIssue = "Other"
+    อ่าน KeywordGroup ตรงจาก Comments sheet — ไม่ต้อง join
     """
     sheet = get_sheet(COMMENTS_SHEET_ID, COMMENTS_SHEET_NAME)
     records = sheet.get_all_records()
@@ -386,10 +394,9 @@ def get_other_issue_comments_by_group(postid_to_group):
     for i, row in enumerate(records):
         issue_label = str(row.get("CommentIssue", "")).strip()
         if issue_label == "Other":
-            cid     = str(row.get("CommentID", "")).strip()
-            text    = str(row.get("CommentText", "")).strip()
-            post_id = str(row.get("PostID", "")).strip()
-            group   = postid_to_group.get(post_id, "_unknown_")
+            cid   = str(row.get("CommentID", "")).strip()
+            text  = str(row.get("CommentText", "")).strip()
+            group = str(row.get("KeywordGroup", "_unknown_")).strip() or "_unknown_"
             if not cid:
                 cid = f"row_{i+2}"
             result.setdefault(group, []).append({
@@ -439,11 +446,13 @@ def get_unlabeled_comments():
             if not cid:
                 cid = f"row_{i+2}"
             post_id = str(row.get("PostID", "")).strip()
+            keyword_group = str(row.get("KeywordGroup", "")).strip()
             result.append({
-                "row_index": i + 2,
-                "cid":       cid,
-                "text":      text,
-                "post_id":   post_id,
+                "row_index":    i + 2,
+                "cid":          cid,
+                "text":         text,
+                "post_id":      post_id,
+                "keyword_group": keyword_group,
             })
     print(f"  unlabeled comments: {len(result)}")
     return result
@@ -465,11 +474,13 @@ def get_other_issue_comments():
             post_id = str(row.get("PostID", "")).strip()
             if not cid:
                 cid = f"row_{i+2}"
+            keyword_group = str(row.get("KeywordGroup", "")).strip()
             result.append({
-                "row_index": i + 2,
-                "cid":       cid,
-                "text":      text,
-                "post_id":   post_id,
+                "row_index":    i + 2,
+                "cid":          cid,
+                "text":         text,
+                "post_id":      post_id,
+                "keyword_group": keyword_group,
             })
     print(f"  IssueLabels=Other comments: {len(result)}")
     return result
