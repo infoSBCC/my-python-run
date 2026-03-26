@@ -48,7 +48,7 @@ UNIQUE_POST_HEADERS = [
     "VideoDuration",
     "MusicTitle",
     "Use",
-    "keyword group",
+    "KeywordGroup",
 ]
 
 # AllPost sheet header columns (must match Google Sheet exactly)
@@ -368,7 +368,7 @@ def get_postid_to_group():
     result = {}
     for row in records:
         post_id = str(row.get("PostID", "")).strip()
-        group   = str(row.get("keyword group", "")).strip() or "_unknown_"
+        group   = str(row.get("KeywordGroup", row.get("keyword group", ""))).strip() or "_unknown_"
         if post_id:
             result[post_id] = group
     return result
