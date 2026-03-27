@@ -93,7 +93,7 @@ def _gemini_call(prompt, *, thinking=False):
     for attempt in range(1, GEMINI_MAX_RETRIES + 1):
         try:
             resp = gemini_client.models.generate_content(
-                model="gemini-2.5-flash-lite",
+                model="gemini-3-flash-preview",
                 contents=prompt,
                 config=cfg,
             )
@@ -248,11 +248,13 @@ def fetch_stats(links):
     for item in items:
         link = normalize_link(str(item.get("postPage", "")))
         if link:
+            statistics = item.get("statistics", {}) or {}
             stats_map[link] = {
                 "likes":     int(item.get("likes", 0) or 0),
                 "comments":  int(item.get("comments", 0) or 0),
                 "shares":    int(item.get("shares", 0) or 0),
                 "bookmarks": int(item.get("bookmarks", 0) or 0),
+                "views":     int(statistics.get("play_count", 0) or 0),
             }
     return stats_map
 
@@ -657,6 +659,7 @@ def main():
                 s.get("comments", 0),
                 s.get("shares", 0),
                 s.get("bookmarks", 0),
+                s.get("views", 0),
                 scrape_date,
                 link_to_kwgroup.get(link, ""),
             ])
