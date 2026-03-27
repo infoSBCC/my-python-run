@@ -103,7 +103,7 @@ COMMENTS_HEADERS = [
     "PostID", "CommentID", "CommentText", "CommentDate", "DiggCount",
     "ReplyCount", "AuthorUID", "AuthorUniqueID", "AuthorNickname",
     "AuthorFollower", "AuthorRegion", "ScrapeDate", "KeywordGroup",
-    "CommentType", "CommentIssue",
+    "CommentType", "CommentIssue", "CommentSentiment",
 ]
 
 
