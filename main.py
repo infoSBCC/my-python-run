@@ -310,6 +310,7 @@ def fetch_comments(links, scrape_date, link_to_group=None):
             "keyword_group": kw_group,
             "type_label":    "",
             "issue_labels":  "",
+            "sentiment":     "",
         })
     return comment_dicts
 
@@ -320,14 +321,15 @@ def fetch_comments(links, scrape_date, link_to_group=None):
 
 def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
     """
-    Phase 1: จัดประเภท TypeLabel + IssueLabels
+    Phase 1: จัดประเภท TypeLabel + IssueLabels + Sentiment
     batch: list of comment dicts (ต้องมี "cid", "text")
-    Returns: list of {"cid": str, "type_label": str, "issue_labels": str}
+    Returns: list of {"cid": str, "type_label": str, "issue_labels": str, "sentiment": str}
     """
     type_names  = [t["name"] for t in type_criteria] + ["Other"]
     issue_names = [i["name"] for i in issue_criteria] + ["Other"]
     valid_types  = set(type_names)
     valid_issues = set(issue_names)
+    valid_sentiments = {"Positive", "Neutral", "Negative"}
 
     type_block = "\n".join(
         f'- {t["name"]}: {_clean_text(t["criteria"][:120])}'
@@ -353,13 +355,19 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
         f"{instruction}\n\n"
         f"=== ประเภทความคิดเห็น ===\n{type_block}\n\n"
         f"=== ประเด็น ===\n{issue_block}\n\n"
+        f"=== Sentiment ===\n"
+        "- Positive: ความคิดเห็นเชิงบวก สนับสนุน เห็นด้วย ชื่นชม\n"
+        "- Neutral: ความคิดเห็นกลางๆ ไม่มีอารมณ์ชัดเจน แจ้งข้อมูล ถามคำถาม\n"
+        "- Negative: ความคิดเห็นเชิงลบ วิจารณ์ ไม่พอใจ กังวล โกรธ\n\n"
         f"=== ความคิดเห็น ===\n{comments_block}\n\n"
         f"Valid type values: {valid_type_str}\n"
-        f"Valid issue values: {valid_issue_str}\n\n"
+        f"Valid issue values: {valid_issue_str}\n"
+        'Valid sentiment values: "Positive", "Neutral", "Negative"\n\n'
         "ตอบเป็น JSON array เท่านั้น รูปแบบ:\n"
-        '[{"idx":0, "type":"Criticize", "issues":["Burden","Trust"]}]\n'
+        '[{"idx":0, "type":"Criticize", "issues":["Burden","Trust"], "sentiment":"Negative"}]\n'
         "type ต้องเป็นค่าจาก Valid type values เท่านั้น\n"
         "issues ต้องเป็น list จาก Valid issue values เท่านั้น ถ้าไม่มีให้ใส่ [\"Other\"]\n"
+        "sentiment ต้องเป็น Positive, Neutral, หรือ Negative เท่านั้น\n"
         "ห้ามอธิบาย ห้ามใส่ markdown"
     )
 
@@ -402,21 +410,27 @@ def classify_comments_batch(batch, type_criteria, issue_criteria, instruction):
             if not issue_list:
                 issue_list = ["Other"]
 
+            raw_sentiment = str(item.get("sentiment", "Neutral")).strip()
+            sentiment = raw_sentiment if raw_sentiment in valid_sentiments else "Neutral"
+
             output.append({
                 "cid":          cid,
                 "type_label":   type_label,
                 "issue_labels": "|".join(issue_list),
+                "sentiment":    sentiment,
             })
 
         for idx, cid in idx_to_cid.items():
             if idx not in responded_idxs:
                 log.debug("missing idx=%s → Other", idx)
-                output.append({"cid": cid, "type_label": "Other", "issue_labels": "Other"})
+                output.append({"cid": cid, "type_label": "Other",
+                               "issue_labels": "Other", "sentiment": "Neutral"})
         return output
 
     except Exception as e:
         log.warning("classify batch failed: %s", e)
-        return [{"cid": c["cid"], "type_label": "Other", "issue_labels": "Other"}
+        return [{"cid": c["cid"], "type_label": "Other",
+                 "issue_labels": "Other", "sentiment": "Neutral"}
                 for c in batch]
 
 
@@ -767,6 +781,7 @@ def main():
                 if r["cid"] in cid_to_comment:
                     cid_to_comment[r["cid"]]["type_label"] = r["type_label"]
                     cid_to_comment[r["cid"]]["issue_labels"] = r["issue_labels"]
+                    cid_to_comment[r["cid"]]["sentiment"] = r["sentiment"]
 
     classified_count = sum(1 for c in all_comments if c["type_label"])
     log.info("Phase 1 classified: %d / %d", classified_count, len(all_comments))
@@ -835,6 +850,7 @@ def main():
             c["keyword_group"],
             c["type_label"],
             c["issue_labels"],
+            c["sentiment"],
         ])
 
     append_comments(comment_rows)
